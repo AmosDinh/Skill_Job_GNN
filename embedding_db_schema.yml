@@ -1,0 +1,67 @@
+classes:
+-   class: Job
+    description: Job
+    properties:
+    -   dataType:
+        - string
+        description: title of the job
+        name: name
+    vectorizer: none
+    invertedIndexConfig:
+        indexNullState: True
+        indexTimestamps: True
+    vectorIndexConfig:
+        distance: cosine
+
+-   class: Skill
+    description: Skill
+    properties:
+    -   dataType:
+        - string
+        description: name of the Skill
+        name: name
+    vectorizer: none
+    invertedIndexConfig:
+        indexNullState: True
+        indexTimestamps: True
+    vectorIndexConfig:
+        distance: cosine
+        
+cross_refs:
+# Skill-Skill
+-   forClass: Skill
+    property:
+        dataType:
+        - Skill
+        name: IS_SIMILAR_SKILL
+-   forClass: Skill
+    property: 
+        dataType:
+        - Skill
+        name: rev_IS_SIMILAR_SKILL
+
+
+# Job-Job
+-   forClass: Job
+    property:
+        dataType:
+        - Job
+        name: IS_SIMILAR_JOB
+-   forClass: Job
+    property: 
+        dataType:
+        - Job
+        name: rev_IS_SIMILAR_JOB
+
+
+# Job-Skill
+-   forClass: Job
+    property:
+        dataType:
+        - Skill
+        name: REQUIRES
+-   forClass: Skill
+    property: 
+        dataType:
+        - Job
+        name: rev_REQUIRES
