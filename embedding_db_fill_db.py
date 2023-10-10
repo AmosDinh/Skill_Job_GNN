@@ -8,6 +8,11 @@ from models.WeightedSkillSAGE import WeightedSkillSAGE, WeightedSkillSAGE_lr_2em
 from models.get_entity_embedding import get_entity_embedding
 from models.get_node_neighbors import get_node_neighbors
 import pathlib
+import torch
+from torch_geometric.data import HeteroData
+import torch_geometric.transforms as T
+import os
+from copy import deepcopy
 
 
 def submit_weaviate_batch(batch, data_objects=[], references=[]):
@@ -26,9 +31,7 @@ def get_weaviate_client(db_url):
     return weaviate.Client(db_url)
 
 
-import torch
-from torch_geometric.data import HeteroData
-import os
+
 
 
 
@@ -36,10 +39,11 @@ import os
 
 def generate_object(class_name, node_id, node_name, node_embedding):
     return {
-            'class_name': class_name,
+            'class_name': 'Node',
             'uuid': generate_uuid(class_name, node_id),
             'data_object': {
                 'name': node_name,
+                'type': class_name
             },
             'vector': node_embedding
         }
@@ -77,10 +81,28 @@ def fill_db(model:torch.nn.Module, data:HeteroData, node_type_and_node_index_to_
     
     
     
+    
     for node_type, index_mapping in node_type_and_node_index_to_name_mappings.items():
         print(data[node_type].x.shape[0],len(list(index_mapping.keys())))
         assert data[node_type].x.shape[0] == len(list(index_mapping.keys())), f'index mapping for {node_type} must be as big as supplied data object for that node type'
     
+    # remove isolated nodes, for those we can not compute embeddings
+    # save the names before that
+    
+    for node_type, index_mapping in node_type_and_node_index_to_name_mappings.items():
+        data[node_type].n_id = torch.arange(len(list(index_mapping.keys())))
+        # data[node_type].x = np.concatenate([data[node_type].x, np.array(names).reshape(-1,1)], axis=1) 
+        
+    data = T.RemoveIsolatedNodes()(data)
+    
+    temp_mapping = {}
+    for node_type, old_mapping in node_type_and_node_index_to_name_mappings.items():
+        index_mapping = {}
+        for i in range(data[node_type].n_id.shape[0]):
+            index_mapping[i] = old_mapping[data[node_type].n_id[i].item()]
+            
+        temp_mapping[node_type] = index_mapping
+    node_type_and_node_index_to_name_mappings = temp_mapping
     
     # create all the nodes
     batch_size_n_nodes = 1000
@@ -88,12 +110,12 @@ def fill_db(model:torch.nn.Module, data:HeteroData, node_type_and_node_index_to_
         print(f'Add nodes: {node_type}')
         mapping = list(zip(index_mapping.keys(), index_mapping.values()))
         while len(mapping):
-            print(f'Add nodes: {node_type}, {len(mapping)}', end='\r')
+            print(f'Add nodes: {node_type}, {len(mapping)}')
             node_objects = []
             batch_mapping = mapping[:batch_size_n_nodes]
             mapping = mapping[batch_size_n_nodes:]
             
-            node_embeddings = get_entity_embedding(model, data, node_type=node_type, num_neighbors=[1000000], node_ids=[i for i, name in batch_mapping])
+            node_embeddings = get_entity_embedding(model, data, node_type=node_type, num_neighbors=[5,4], node_ids=[i for i, name in batch_mapping])
             for i, (node_id, name) in enumerate(batch_mapping):
                 node_objects.append(generate_object(node_type, node_id, name, node_embeddings[i]))
 
@@ -107,9 +129,12 @@ def fill_db(model:torch.nn.Module, data:HeteroData, node_type_and_node_index_to_
             edge = edge_index[i]
             edge_objects.append(
                 generate_reference_object(
-                    from_uuid=generate_uuid(class_name=edge_type[0], node_id=edge[0]),
+                    # from_uuid=generate_uuid(class_name=edge_type[0], node_id=edge[0]),
+                    # to_uuid=generate_uuid(class_name=edge_type[2], node_id=edge[1]),
+                    # edge_name=edge_type[1], from_class_name=edge_type[0], to_class_name=edge_type[2]
+                    from_uuid=generate_uuid(class_name=edge_type[0], node_id=edge[0]), # class names have to be job and skill, to get unique uuid
                     to_uuid=generate_uuid(class_name=edge_type[2], node_id=edge[1]),
-                    edge_name=edge_type[1], from_class_name=edge_type[0], to_class_name=edge_type[2]
+                    edge_name=edge_type[1], from_class_name='Node', to_class_name='Node'
                     )
                 )
         
@@ -151,9 +176,10 @@ def create_schema(client, schema_yaml):
 
 
 def main():
-    filename = 'Job_Skill_HeteroData_v3.pt'
-    if os.path.exists('./'+filename):
-        data = HeteroData.from_dict(torch.load('./'+filename))
+    filename = 'Job_Skill_HeteroData_with_isolated_nodes_v3.pt' # 
+    
+    data = HeteroData.from_dict(torch.load('./'+filename))
+
 
 
     model = WeightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints()
@@ -169,6 +195,7 @@ def main():
         
     normindex_to_skillname = node_mappings['inverted_skillmapping']
     
+    
     node_type_and_node_index_to_name_mappings = {}
     node_type_and_node_index_to_name_mappings['Job']= normindex_to_jobtitle
     node_type_and_node_index_to_name_mappings['Skill']= normindex_to_skillname
@@ -177,6 +204,7 @@ def main():
 
 if __name__=='__main__':
     main()
+    # start docker, then
     # docker compose up -d
     # to start the weaviate instance
     
