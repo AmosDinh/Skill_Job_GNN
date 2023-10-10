@@ -117,21 +117,26 @@ class WeightedSkillGAT(torch.nn.Module):
         
         self.hetero_convs = torch.nn.ModuleList()
         for i in range(n_conv_layers):
+            if i == 0:
+                in_ch = (in_channels, in_channels)
+            else:
+                in_ch = (hidden_channels, hidden_channels)
+                
             if i == n_conv_layers-1:
                 concat = False # average instead
             else:
                 concat = True
             dropout = 0.6
             heads = 4
-            
-            in_ch = (hidden_channels, hidden_channels)
+            edge_dim = 1
+           
             # add_self_loops=True lets the GAT attend to the nodes own representation
-            skill_skill = GATv2Conv(in_ch, hidden_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=True)  # use same for rev_skill as well
-            job_job = GATv2Conv(in_ch, hidden_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=True)  # use same for rev_job... as well
+            skill_skill = GATv2Conv(in_ch, hidden_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=True, edge_dim=edge_dim)  # use same for rev_skill as well
+            job_job = GATv2Conv(in_ch, hidden_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=True, edge_dim=edge_dim)  # use same for rev_job... as well
             conv = HeteroConv(
                 {
-                    ('Job', 'REQUIRES', 'Skill'): GATv2Conv(in_ch, hidden_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=True),
-                    ('Skill', 'rev_REQUIRES', 'Job'): GATv2Conv(in_ch, hidden_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=True),
+                    ('Job', 'REQUIRES', 'Skill'): GATv2Conv(in_ch, hidden_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=False, edge_dim=edge_dim),
+                    ('Skill', 'rev_REQUIRES', 'Job'): GATv2Conv(in_ch, hidden_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=False, edge_dim=edge_dim),
                     ('Skill', 'IS_SIMILAR_SKILL', 'Skill'):skill_skill,
                     ('Skill', 'rev_IS_SIMILAR_SKILL', 'Skill'):skill_skill,
                     ('Job', 'IS_SIMILAR_JOB', 'Job'):job_job,
@@ -167,10 +172,12 @@ class WeightedSkillGAT(torch.nn.Module):
 
 
 
-def WeightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints():
+
+
+
+def weightedSkillGAT_lr_2emin7_256dim_4heads_2layers_edgeweights_checkpoints():
     seed_everything(14)
     # this one has num_neighbors =[10,8] in the link neighbor loader
     model = WeightedSkillGAT(in_channels=132, hidden_channels=256, out_channels=256, n_conv_layers=2)
     return model
-
 

@@ -163,7 +163,7 @@ class WeightedSkillSAGE(torch.nn.Module):
 
 
 
-def WeightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints():
+def weightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints():
     seed_everything(14)
     # this one has num_neighbors =[5,4] in the link neighbor loader
     model = WeightedSkillSAGE(in_channels=132, hidden_channels=256, out_channels=256, n_conv_layers=2)
