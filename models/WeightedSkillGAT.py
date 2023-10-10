@@ -104,7 +104,7 @@ from torch_geometric import seed_everything
 from torch_geometric.utils import trim_to_layer
 
 class WeightedSkillGAT(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, n_conv_layers):
+    def __init__(self, in_channels, hidden_channels,  out_channels, heads, n_conv_layers):
         super().__init__()
         
         # self.lin_in = torch.nn.ModuleDict({
@@ -117,26 +117,32 @@ class WeightedSkillGAT(torch.nn.Module):
         
         self.hetero_convs = torch.nn.ModuleList()
         for i in range(n_conv_layers):
+            
+            dropout = 0.6
+            edge_dim = 1
+            
             if i == 0:
                 in_ch = (in_channels, in_channels)
-            else:
-                in_ch = (hidden_channels, hidden_channels)
                 
+            else:
+                in_ch = (hidden_channels*heads, hidden_channels*heads)
+            
+            
             if i == n_conv_layers-1:
                 concat = False # average instead
+                out_channels = out_channels
             else:
                 concat = True
-            dropout = 0.6
-            heads = 4
-            edge_dim = 1
+                out_channels = hidden_channels
+            
            
             # add_self_loops=True lets the GAT attend to the nodes own representation
-            skill_skill = GATv2Conv(in_ch, hidden_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=True, edge_dim=edge_dim)  # use same for rev_skill as well
-            job_job = GATv2Conv(in_ch, hidden_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=True, edge_dim=edge_dim)  # use same for rev_job... as well
+            skill_skill = GATv2Conv(in_ch, out_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=True, edge_dim=edge_dim)  # use same for rev_skill as well
+            job_job = GATv2Conv(in_ch, out_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=True, edge_dim=edge_dim)  # use same for rev_job... as well
             conv = HeteroConv(
                 {
-                    ('Job', 'REQUIRES', 'Skill'): GATv2Conv(in_ch, hidden_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=False, edge_dim=edge_dim),
-                    ('Skill', 'rev_REQUIRES', 'Job'): GATv2Conv(in_ch, hidden_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=False, edge_dim=edge_dim),
+                    ('Job', 'REQUIRES', 'Skill'): GATv2Conv(in_ch, out_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=False, edge_dim=edge_dim),
+                    ('Skill', 'rev_REQUIRES', 'Job'): GATv2Conv(in_ch, out_channels, heads=heads, concat=concat, dropout=dropout, add_self_loops=False, edge_dim=edge_dim),
                     ('Skill', 'IS_SIMILAR_SKILL', 'Skill'):skill_skill,
                     ('Skill', 'rev_IS_SIMILAR_SKILL', 'Skill'):skill_skill,
                     ('Job', 'IS_SIMILAR_JOB', 'Job'):job_job,
@@ -175,9 +181,14 @@ class WeightedSkillGAT(torch.nn.Module):
 
 
 
-def weightedSkillGAT_lr_2emin7_256dim_4heads_2layers_edgeweights_checkpoints():
+def weightedSkillGAT_lr_2emin7_16hiddenchannels_8heads_128out_2layers_edgeweights_checkpoints():
     seed_everything(14)
     # this one has num_neighbors =[10,8] in the link neighbor loader
-    model = WeightedSkillGAT(in_channels=132, hidden_channels=256, out_channels=256, n_conv_layers=2)
+    model = WeightedSkillGAT(in_channels=132,  hidden_channels=16, out_channels=128, heads=8, n_conv_layers=2)
     return model
 
+def weightedSkillGAT_lr_2emin6_16hiddenchannels_8heads_128out_2layers_edgeweights_checkpoints():
+    seed_everything(14)
+    # this one has num_neighbors =[10,8] in the link neighbor loader
+    model = WeightedSkillGAT(in_channels=132,  hidden_channels=16, out_channels=128, heads=8, n_conv_layers=2)
+    return model
