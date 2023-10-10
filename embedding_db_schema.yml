@@ -16,19 +16,20 @@ classes:
         indexTimestamps: True
     vectorIndexConfig:
         distance: cosine
-        
+
+
 cross_refs:
 # Skill-Skill
 -   forClass: Node
     property:
         dataType:
         - Node
-        name: IS_SIMILAR_SKILL
+        name: is_similar_skill  # lowercase needed
 -   forClass: Node
     property: 
         dataType:
         - Node
-        name: rev_IS_SIMILAR_SKILL
+        name: rev_is_similar_skill
 
 
 # Job-Job
@@ -36,12 +37,12 @@ cross_refs:
     property:
         dataType:
         - Node
-        name: IS_SIMILAR_JOB
+        name: is_similar_job
 -   forClass: Node
     property: 
         dataType:
         - Node
-        name: rev_IS_SIMILAR_JOB
+        name: rev_is_similar_job
 
 
 # Job-Skill
@@ -49,12 +50,12 @@ cross_refs:
     property:
         dataType:
         - Node
-        name: REQUIRES
+        name: requires
 -   forClass: Node
     property: 
         dataType:
         - Node
-        name: rev_REQUIRES
+        name: rev_requires
 # classes:
 # -   class: Job
 #     description: Job

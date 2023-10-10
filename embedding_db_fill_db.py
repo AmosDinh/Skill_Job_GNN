@@ -77,10 +77,6 @@ def fill_db(model:torch.nn.Module, data:HeteroData, node_type_and_node_index_to_
     delete_schema(client)
     create_schema(client, schema_path)
     print('created schema')
-
-    
-    
-    
     
     for node_type, index_mapping in node_type_and_node_index_to_name_mappings.items():
         print(data[node_type].x.shape[0],len(list(index_mapping.keys())))
@@ -125,16 +121,17 @@ def fill_db(model:torch.nn.Module, data:HeteroData, node_type_and_node_index_to_
     for edge_type in data.edge_types:
         edge_index = data[edge_type].edge_index.T
         edge_objects = []
-        for i in tqdm(enumerate(range(edge_index.shape[0])), desc=f'Add edges: {str(edge_type)}'):
+        for i in tqdm(range(edge_index.shape[0]), desc=f'Add edges: {str(edge_type)}'):
+
             edge = edge_index[i]
             edge_objects.append(
                 generate_reference_object(
                     # from_uuid=generate_uuid(class_name=edge_type[0], node_id=edge[0]),
                     # to_uuid=generate_uuid(class_name=edge_type[2], node_id=edge[1]),
                     # edge_name=edge_type[1], from_class_name=edge_type[0], to_class_name=edge_type[2]
-                    from_uuid=generate_uuid(class_name=edge_type[0], node_id=edge[0]), # class names have to be job and skill, to get unique uuid
-                    to_uuid=generate_uuid(class_name=edge_type[2], node_id=edge[1]),
-                    edge_name=edge_type[1], from_class_name='Node', to_class_name='Node'
+                    from_uuid=generate_uuid(class_name=edge_type[0], node_id=edge[0].item()), # class names have to be job and skill, to get unique uuid
+                    to_uuid=generate_uuid(class_name=edge_type[2], node_id=edge[1].item()),
+                    edge_name=edge_type[1].lower(), from_class_name='Node', to_class_name='Node'
                     )
                 )
         
@@ -183,7 +180,7 @@ def main():
 
 
     model = WeightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints()
-    checkpoint = torch.load('runs/WeightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints/checkpoint_ep2.pt')
+    checkpoint = torch.load('runs/WeightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints/checkpoint_ep3.pt')
     model.load_state_dict(checkpoint['model_state_dict'])
 
     node_mappings = torch.load('Job_Skill_HeteroData_name_mappings_v3.pt')
