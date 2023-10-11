@@ -3,10 +3,12 @@ import torch
 from torch_geometric.data import HeteroData
 
 
-filename = 'Job_Skill_HeteroData_v3.pt'
+filename = 'Job_Skill_HeteroData_withdupes_fulldataset_v1.pt'
 if os.path.exists('./'+filename):
     data = HeteroData.from_dict(torch.load('./'+filename))
     print('loading saved heterodata object')
+
+    print(data)
 
 from torch_geometric import seed_everything
 import torch_geometric.transforms as T
@@ -57,17 +59,16 @@ def create_loader(data:HeteroData, edge_type:Tuple[str,str,str], num_neighbors:L
     
     loader = LinkNeighborLoader(
         data,
-        num_neighbors=num_neighbors,
-        # {
-        #     ('Job', 'REQUIRES', 'Skill'):num_neighbors,
-        #     ('Skill', 'rev_REQUIRES', 'Job'):num_neighbors,
-        #     ('Skill', 'IS_SIMILAR_SKILL', 'Skill'):num_neighbors, # In this example, index 0 will never be used, since neighboring edge to a job node can't be a skill-skill edge
-        #     ('Skill', 'rev_IS_SIMILAR_SKILL', 'Skill'):num_neighbors,
-        #     ('Job', 'IS_SIMILAR_JOB', 'Job'):num_neighbors,
-        #     ('Job', 'rev_IS_SIMILAR_JOB', 'Job'):num_neighbors,
-        # },
+        num_neighbors={
+            ('Job', 'REQUIRES', 'Skill'):[5,4],
+            ('Skill', 'rev_REQUIRES', 'Job'):[5,4],
+            ('Skill', 'IS_SIMILAR_SKILL', 'Skill'):[5,4], # In this example, index 0 will never be used, since neighboring edge to a job node can't be a skill-skill edge
+            ('Skill', 'rev_IS_SIMILAR_SKILL', 'Skill'):[5,4],
+            ('Job', 'IS_SIMILAR_JOB', 'Job'):[5,4],
+            ('Job', 'rev_IS_SIMILAR_JOB', 'Job'):[5,4],
+        },
         edge_label_index=(edge_type, data[edge_type].edge_label_index), # if (edge, None), None means all edges are considered
-        #  =train_data[edge].edge_label,
+     
         neg_sampling=negative_sampling, # adds negative samples
         batch_size=batch_size,
         shuffle=is_training,
@@ -80,17 +81,21 @@ def create_loader(data:HeteroData, edge_type:Tuple[str,str,str], num_neighbors:L
         #prefetch_factor=2
     )
     print(f'Using {num_workers} workers in the dataloader for edgetype {edge_type}')
-
+# A
     return loader
 
 
 batch_size=64
-num_neighbors = [10,8]
+num_neighbors = [5,4]
 
 def create_iterator(data, is_training:bool):
     loaders = []
     supervision_edge_types = []
-    for edge_type in [('Job', 'REQUIRES', 'Skill'),('Job', 'IS_SIMILAR_JOB', 'Job'), ('Skill', 'IS_SIMILAR_SKILL', 'Skill')]:
+    for edge_type in [
+        ('Job', 'REQUIRES', 'Skill'),
+        ('Job', 'IS_SIMILAR_JOB', 'Job'), 
+        # ('Skill', 'IS_SIMILAR_SKILL', 'Skill')
+        ]:
         # if 'rev_' in edge_type[1]:
         #     continue    
         # we dont need rev_ target edges, since they are the same
@@ -155,8 +160,7 @@ train_iterator, train_batch_len = create_iterator(train_data, is_training=True)
 val_iterator, val_batch_len = create_iterator(val_data, is_training=False)
 test_iterator, test_batch_len = create_iterator(test_data, is_training=False)
 
-from models.WeightedSkillGAT import weightedSkillGAT_lr_2emin6_16hiddenchannels_8heads_128out_2layers_edgeweights_checkpoints
-model = weightedSkillGAT_lr_2emin6_16hiddenchannels_8heads_128out_2layers_edgeweights_checkpoints()
+
 
 from torcheval.metrics import BinaryAccuracy, BinaryPrecision, BinaryRecall, BinaryF1Score, BinaryAUPRC, BinaryAUROC
 from tqdm.auto import tqdm
@@ -284,6 +288,10 @@ class GNNTrainer():
         self.create_logfolders(run_folder)
 
         self.model.train()
+        
+        print(f'Number of parameters: {sum(p.numel() for p in model.parameters())}')
+        print(f'Number of learnable parameters: {sum(p.numel() for p in model.parameters()  if p.requires_grad)}')
+        
         assert start_epoch >= 1, "Epoch must be >= 1"
         
         for epoch in range(start_epoch, start_epoch+n_epochs):
@@ -378,8 +386,8 @@ class GNNTrainer():
                     
             # save metrics
             for key in y_hat_per_edgetype:
-                y_hat_per_edgetype[key] = torch.cat(y_hat_per_edgetype[supervision_edge_type])
-                y_per_edgetype[key] = torch.cat(y_per_edgetype[supervision_edge_type])
+                y_hat_per_edgetype[key] = torch.cat(y_hat_per_edgetype[key])
+                y_per_edgetype[key] = torch.cat(y_per_edgetype[key])
                 y_hat.append(y_hat_per_edgetype[key])
                 y.append(y_per_edgetype[key])
                 
@@ -403,6 +411,17 @@ class GNNTrainer():
         
 import os
 import torch
+
+
+# from models.WeightedSkillGAT import weightedSkillGAT_lr_2emin6_16hiddenchannels_8heads_128out_2layers_edgeweights_checkpoints
+# model = weightedSkillGAT_lr_2emin6_16hiddenchannels_8heads_128out_2layers_edgeweights_checkpoints()
+from models.WeightedSkillSAGE import weightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_noskillskillpred_checkpoints
+from models.WeightedSkillSAGE import weightedSkillSAGE_lr_2emin7_0lin_256dim_edgeweight_prelu_batchnorm_checkpoints
+from models.WeightedSkillSAGE import weightedSkillSAGE_lr_2emin7_0lin_132dim_edgeweight_prelu_batchnorm_checkpoints
+from models.WeightedSkillSAGE import skillsage_388_prelu_batchnorm_edgeweight
+# model = weightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_noskillskillpred_checkpoints()
+# model = weightedSkillSAGE_lr_2emin7_0lin_256dim_edgeweight_prelu_batchnorm_checkpoints()
+model = skillsage_388_prelu_batchnorm_edgeweight()
 #os.environ["TOKENIZERS_PARALLELISM"] = "true"
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = model.to(device)
@@ -437,8 +456,9 @@ trainer.train(
     val_iterator, 
     start_epoch=1, 
     n_epochs=200, 
-    run_folder=f'weightedSkillGAT_lr_2emin6_16hiddenchannels_8heads_128out_2layers_edgeweights_checkpoints', # WeightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight
+    run_folder=f'skillsage_388_prelu_batchnorm_edgeweight', # temp
     save_metrics_after_n_batches=1000) # graphconv_v0_lr_2emin6_2lin_1lin_256dim
+#weightedSkillSAGE_lr_2emin7_0lin_256dim_edgeweight_prelu_batchnorm_checkpoints
 # trainer.validate(val_dataloader)
 # trainer.plot_losses()
 # trainer.load_checkpoint('./checkpoints/checkpoint_100.pt')

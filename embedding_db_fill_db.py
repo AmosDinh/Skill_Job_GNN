@@ -4,7 +4,7 @@ import numpy as np
 import weaviate
 import pathlib
 from weaviate.util import generate_uuid5
-from models.WeightedSkillSAGE import WeightedSkillSAGE, WeightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints
+from models.WeightedSkillSAGE import weightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints
 from models.get_entity_embedding import get_entity_embedding
 from models.get_node_neighbors import get_node_neighbors
 import pathlib
@@ -179,7 +179,7 @@ def main():
 
 
 
-    model = WeightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints()
+    model = weightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints()
     checkpoint = torch.load('runs/WeightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints/checkpoint_ep3.pt')
     model.load_state_dict(checkpoint['model_state_dict'])
 
@@ -200,6 +200,7 @@ def main():
     
 
 if __name__=='__main__':
+    print('need to use torch 2.0.0 and cu118! for WeightedSkillSAGE .pt')
     main()
     # start docker, then
     # docker compose up -d
