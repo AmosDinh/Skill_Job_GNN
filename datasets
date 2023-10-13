@@ -1,0 +1,11 @@
+Job_Skill_HeteroData_v3.pt
+has no isolated nodes anymore
+
+Job_Skill_HeteroData_withdupes_fulldataset_v1.pt
+also includes the isolated nodes
+
+
+Job_Skill_HeteroData_withdupes_fulldataset_v2.pt
+has isolated nodes, max 200 of job-skill, skill-job, instead of 175 and 125
+has rescaled tfidf to first edges[edges>0.8]=0.8, then rescaled to 0.5 - 1
+also j-j edges have values 0.5, 0.75, and 1
