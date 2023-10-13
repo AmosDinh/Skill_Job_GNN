@@ -54,7 +54,6 @@ class WeightedGraphSageConv(SimpleConv):
         
         if activation == 'prelu':
             self.activation = torch.nn.PReLU(num_parameters=out_channels)
-            
             self.max_pool_activation = torch.nn.PReLU(num_parameters=in_ch)
       
                 
@@ -307,4 +306,3 @@ def skillsage_388_prelu_batchnorm_edgeweight():
     # the model was not trained on predicting skillskill edges, only s-j and j-j
     model = WeightedSkillSAGEPreluBatchnorm(in_channels=388, hidden_channels=256, out_channels=256, n_conv_layers=2)
     return model
-    

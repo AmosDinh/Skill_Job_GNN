@@ -4,7 +4,7 @@ import numpy as np
 import weaviate
 import pathlib
 from weaviate.util import generate_uuid5
-from models.WeightedSkillSAGE import weightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints
+from models.WeightedSkillSAGE import skillsage_388_prelu_batchnorm_edgeweight
 from models.get_entity_embedding import get_entity_embedding
 from models.get_node_neighbors import get_node_neighbors
 import pathlib
@@ -173,17 +173,17 @@ def create_schema(client, schema_yaml):
 
 
 def main():
-    filename = 'Job_Skill_HeteroData_with_isolated_nodes_v3.pt' # 
+    filename = 'Job_Skill_HeteroData_withdupes_fulldataset_v1.pt' # 
     
     data = HeteroData.from_dict(torch.load('./'+filename))
 
 
 
-    model = weightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints()
-    checkpoint = torch.load('runs/WeightedSkillSAGE_lr_2emin7_1lin_1lin_256dim_edgeweight_checkpoints/checkpoint_ep3.pt')
+    model = skillsage_388_prelu_batchnorm_edgeweight()
+    checkpoint = torch.load('runs/skillsage_388_prelu_batchnorm_edgeweight_checkpoints/checkpoint_ep3.pt')
     model.load_state_dict(checkpoint['model_state_dict'])
 
-    node_mappings = torch.load('Job_Skill_HeteroData_name_mappings_v3.pt')
+    node_mappings = torch.load('Job_Skill_HeteroData_name_mappings_withdupes_fulldataset_v1.pt')
     
     # map titles to the normalized index
     normindex_to_jobtitle = {}
@@ -200,7 +200,7 @@ def main():
     
 
 if __name__=='__main__':
-    print('need to use torch 2.0.0 and cu118! for WeightedSkillSAGE .pt')
+    print('need to use torch 2.1.0 and cu121! for skillsage 388 prelu batchnorm edgeweight .pt')
     main()
     # start docker, then
     # docker compose up -d

@@ -35,8 +35,10 @@ transform = T.RandomLinkSplit(
 
     )
 
-seed_everything(4)
+seed_everything(14)
 train_data, val_data, test_data = transform(data)
+train_data.to('cuda')
+val_data.to('cuda')
 
 from typing import Tuple, List
 from torch_geometric.loader import LinkNeighborLoader
@@ -85,7 +87,7 @@ def create_loader(data:HeteroData, edge_type:Tuple[str,str,str], num_neighbors:L
     return loader
 
 
-batch_size=64
+batch_size=8
 num_neighbors = [5,4]
 
 def create_iterator(data, is_training:bool):
@@ -94,7 +96,7 @@ def create_iterator(data, is_training:bool):
     for edge_type in [
         ('Job', 'REQUIRES', 'Skill'),
         ('Job', 'IS_SIMILAR_JOB', 'Job'), 
-        # ('Skill', 'IS_SIMILAR_SKILL', 'Skill')
+        ('Skill', 'IS_SIMILAR_SKILL', 'Skill')
         ]:
         # if 'rev_' in edge_type[1]:
         #     continue    
@@ -361,6 +363,7 @@ class GNNTrainer():
                         print('eval failed on one minibatch part, skipping')
                         print('Supervision edge type:',supervision_edge_type)
                         print('one type is missing in model output',src_type, dst_type)
+                        hetero_out = model(batch.x_dict, batch.edge_index_dict, batch.edge_weight_dict, batch.num_sampled_edges_dict, batch.num_sampled_nodes_dict)
                         print(batch.x_dict)
                         print(hetero_out.keys())
                         print(batch)
@@ -428,7 +431,7 @@ model = model.to(device)
 torch._dynamo.config.verbose=True
 torch._dynamo.config.suppress_errors = True
 
-optimizer = torch.optim.Adam(model.parameters(), lr=2e-6) #2e-15
+optimizer = torch.optim.Adam(model.parameters(), lr=2e-7) #2e-15
 def graphSAGE_loss(u, v, y_label):
     y_neg = (y_label-1)
     y_label = (y_neg + y_label).squeeze()  # has -1 for neg and 1 for pos
@@ -456,7 +459,7 @@ trainer.train(
     val_iterator, 
     start_epoch=1, 
     n_epochs=200, 
-    run_folder=f'skillsage_388_prelu_batchnorm_edgeweight', # temp
+    run_folder=f'skillsage_388_prelu_batchnorm_edgeweight_jsssjj', # temp
     save_metrics_after_n_batches=1000) # graphconv_v0_lr_2emin6_2lin_1lin_256dim
 #weightedSkillSAGE_lr_2emin7_0lin_256dim_edgeweight_prelu_batchnorm_checkpoints
 # trainer.validate(val_dataloader)
