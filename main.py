@@ -3,7 +3,7 @@ import torch
 from torch_geometric.data import HeteroData
 
 
-filename = 'Job_Skill_HeteroData_withdupes_fulldataset_v1.pt'
+filename = 'Job_Skill_HeteroData_withdupes_fulldataset_v2.pt'
 if os.path.exists('./'+filename):
     data = HeteroData.from_dict(torch.load('./'+filename))
     print('loading saved heterodata object')
@@ -459,7 +459,7 @@ trainer.train(
     val_iterator, 
     start_epoch=1, 
     n_epochs=200, 
-    run_folder=f'skillsage_388_prelu_batchnorm_edgeweight_jsssjj', # temp
+    run_folder=f'skillsage_388_prelu_batchnorm_edgeweight_jsssjj_fulldsv2', # temp
     save_metrics_after_n_batches=1000) # graphconv_v0_lr_2emin6_2lin_1lin_256dim
 #weightedSkillSAGE_lr_2emin7_0lin_256dim_edgeweight_prelu_batchnorm_checkpoints
 # trainer.validate(val_dataloader)
