@@ -302,6 +302,7 @@ def weightedSkillSAGE_lr_2emin7_0lin_132dim_edgeweight_prelu_batchnorm_checkpoin
 
 def skillsage_388_prelu_batchnorm_edgeweight():
     seed_everything(14)
+    # uses make_dataset_fulldataset_v2.ipynb
     # this one has num_neighbors =[5,4] in the link neighbor loader
     # the model was not trained on predicting skillskill edges, only s-j and j-j
     model = WeightedSkillSAGEPreluBatchnorm(in_channels=388, hidden_channels=256, out_channels=256, n_conv_layers=2)

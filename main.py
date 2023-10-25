@@ -428,8 +428,8 @@ model = skillsage_388_prelu_batchnorm_edgeweight()
 #os.environ["TOKENIZERS_PARALLELISM"] = "true"
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = model.to(device)
-torch._dynamo.config.verbose=True
-torch._dynamo.config.suppress_errors = True
+# torch._dynamo.config.verbose=True
+# torch._dynamo.config.suppress_errors = True
 
 optimizer = torch.optim.Adam(model.parameters(), lr=2e-7) #2e-15
 def graphSAGE_loss(u, v, y_label):
