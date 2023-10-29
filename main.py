@@ -31,8 +31,6 @@ transform = T.RandomLinkSplit(
     add_negative_train_samples=False, # only adds neg samples for val and test, neg train are added by LinkNeighborLoader. This means for each train batch, negs. are different, for val and train they stay the same
     neg_sampling_ratio=1.0,
     disjoint_train_ratio=0, #  training edges are shared for message passing and supervision
-    
-
     )
 
 seed_everything(14)
