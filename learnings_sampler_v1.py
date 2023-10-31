@@ -50,11 +50,11 @@ from torch_geometric.data import HeteroData
 def get_datasets(get_edge_attr=False, filename=None):
     if filename is None:
         filename = 'HeteroData_Learnings_v1.pt'
-    size = os.path.getsize('./'+filename)
+    size = os.path.getsize(filename)
     print('size of dataset on disk: ', size/1e9, 'gb')
 
-    if os.path.exists('./'+filename):
-        data = HeteroData.from_dict(torch.load('./'+filename))
+    if os.path.exists(filename):
+        data = HeteroData.from_dict(torch.load(filename))
         print('loading saved heterodata object')
 
     from torch_geometric import seed_everything
