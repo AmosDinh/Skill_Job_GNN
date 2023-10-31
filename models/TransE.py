@@ -10,7 +10,7 @@ from torch_geometric.nn.kge import KGEModel
 
 # adapted and taken from https://github.com/pyg-team/pytorch_geometric/blob/master/torch_geometric/nn/kge/transe.py
 
-class MiniBatchTransE(KGEModel):
+class TransE(KGEModel):
     r"""The TransE model from the `"Translating Embeddings for Modeling
     Multi-Relational Data" <https://proceedings.neurips.cc/paper/2013/file/
     1cecc7a77928ca8133fa24680a88d2f9-Paper.pdf>`_ paper.
@@ -70,12 +70,12 @@ class MiniBatchTransE(KGEModel):
     def forward(
         self,
         head_embeddings: Tensor,
-        rel_type: Tensor,
+        rel_type,
         tail_embeddings: Tensor,
     ) -> Tensor:
 
         #head = self.node_emb(head_index)
-        rel = self.rel_emb(rel_type)
+        rel = self.rel_emb(rel_type)  # Amos: only learn the relation embeddings, others are learned with GNN
         #tail = self.node_emb(tail_index)
 
         head = F.normalize(head_embeddings, p=self.p_norm, dim=-1)
@@ -89,17 +89,17 @@ class MiniBatchTransE(KGEModel):
         head_embeddings: Tensor,
         rel_type: Tensor,
         tail_embeddings: Tensor,
-        labels: Tensor,
+        labels: Tensor, # labels 0 or 1
     ) -> Tensor:
         pos_mask = labels == 1
-        neg_mask = labels == -1
+        neg_mask = labels == 0
+        
         pos_score = self(head_embeddings[pos_mask], rel_type, tail_embeddings[pos_mask])
-     
-        neg_score = self(*self.random_sample(head_index, rel_type, tail_index))
+        neg_score = self(head_embeddings[neg_mask], rel_type, tail_embeddings[neg_mask])
 
         return F.margin_ranking_loss(
             pos_score,
             neg_score,
-            target=torch.ones_like(pos_score),
+            target=torch.ones_like(pos_score), # 1 for similarity, -1 for dissimilarity
             margin=self.margin,
         )
