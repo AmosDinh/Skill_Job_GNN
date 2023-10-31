@@ -47,8 +47,9 @@ import os
 import torch
 from torch_geometric.data import HeteroData
 
-def get_datasets(get_edge_attr=False):
-    filename = 'HeteroData_Learnings_v1.pt'
+def get_datasets(get_edge_attr=False, filename=None):
+    if filename is None:
+        filename = 'HeteroData_Learnings_v1.pt'
     size = os.path.getsize('./'+filename)
     print('size of dataset on disk: ', size/1e9, 'gb')
 
