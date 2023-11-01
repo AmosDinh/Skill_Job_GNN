@@ -57,10 +57,63 @@ def get_datasets(get_edge_attr=False, filename=None):
         data = HeteroData.from_dict(torch.load(filename))
         print('loading saved heterodata object')
 
+
+    from tqdm.auto import tqdm
+    def top_k_mask(scores, indices, top_k ):
+        # Make sure we are using the GPU
+        scores = scores.cuda()
+        indices = indices.cuda()
+        
+        # Create an empty mask with the same shape as scores
+        mask = torch.zeros_like(scores, dtype=torch.bool)
+        # Get the unique indices and their counts
+        unique_indices, counts = torch.unique(indices, return_counts=True)
+    
+        # Indices where count > top_k
+        large_indices = unique_indices[counts > top_k]
+    
+        # Set mask for indices where count <= top_k
+        mask[~torch.isin(indices,large_indices)] = True
+        # For indices where count > 50, we only keep top 50 scores
+        for idx in tqdm(large_indices):
+            idx_mask = (indices == idx)
+            values, idxs = scores[idx_mask].topk(top_k)
+            a = mask[idx_mask]
+            a[idxs] = True
+            mask[idx_mask] = a
+            
+        return mask.cpu()
+
+    
+    top_k = 50
+    print('for skill job edges keep top k edges per job, k is ',top_k)
+    e = ('skills', 'job_skill', 'jobs')
+    rev_e = (e[2],'rev_'+e[1],e[0])
+    cache_dir = 'cache'
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    
+    mask_path = os.path.join(cache_dir, 'mask.pt') 
+    
+    if os.path.isfile(mask_path):
+        mask = torch.load(mask_path)
+    else:
+        mask = top_k_mask(data[e].edge_attr.squeeze(1), data[e].edge_index[1,:], top_k)
+        torch.save(mask, mask_path) 
+     
+    data[e].edge_attr = data[e].edge_attr[mask]
+    data[rev_e].edge_attr = data[rev_e].edge_attr[mask]
+    data[e].edge_index = data[e].edge_index[:,mask]
+    data[rev_e].edge_index = data[rev_e].edge_index[:,mask]
+
+    
+    
     from torch_geometric import seed_everything
     import torch_geometric.transforms as T
     from torch_geometric.utils import sort_edge_index
 
+
+    
     edge_types = []
     rev_edge_types = []
     for edge_type in data.edge_types:
@@ -99,11 +152,11 @@ def get_datasets(get_edge_attr=False, filename=None):
                 del data[edge_type].edge_attr 
 
         # delete all keys for every node type except 'x' (e.g. description and title)
-        for node_type in train_data.node_types:
-            keys = list(train_data[node_type].keys())
+        for node_type in data.node_types:
+            keys = list(data[node_type].keys())
             for key in keys:
                 if key != 'x':
-                    del train_data[node_type][key]
+                    del data[node_type][key]
         return data
     
     
@@ -271,6 +324,76 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
     else:
         return get_hgt_2types_with_selfloops(linkNeighborLoader)
 
+
+# COMMAND ----------
+import os
+import torch
+from torch_geometric.data import HeteroData
+
+
+filename = 'HeteroData_Learnings_normalized_triangles_withadditionaldata_v1.pt'
+size = os.path.getsize(filename)
+print('size of dataset on disk: ', size/1e9, 'gb')
+
+if os.path.exists(filename):
+    data = HeteroData.from_dict(torch.load(filename))
+
+# COMMAND ----------
+
+
+# COMMAND ----------
+from tqdm.auto import tqdm
+values, counts = torch.unique(edge_idx[1,:], return_counts=True)
+
+    
+
+# COMMAND ----------
+
+
+# COMMAND ----------
+keep = 0.75
+total = counts.shape[0]b
+
+
+# COMMAND ----------
+
+
+# COMMAND ----------
+arr = data[e].edge_attr.squeeze(1)
+
+# Calculate the percentile value based on the threshold
+threshold_value = torch.quantile(arr, 0.25)
+
+# Create a mask for values that meet the threshold condition
+mask = arr >= threshold_value
+
+# Apply the mask to filter out values
+filtered_data = arr[mask]
+filtered_data.shape
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+d, counts = data[e].edge_index[1,:][mask.cpu()].unique(return_counts=True)
+
+# COMMAND ----------
+rev_e = (e[2],'rev_'+e[1],e[0])
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+data[e].edge_index.shape
 
 # COMMAND ----------
 #train_data, val_data, test_data = get_datasets(get_edge_attr=False)
