@@ -47,7 +47,7 @@ import os
 import torch
 from torch_geometric.data import HeteroData
 
-def get_datasets(get_edge_attr=False, filename=None):
+def get_datasets(get_edge_attr=False, filename=None, filter_top_k=False, top_k=50):
     if filename is None:
         filename = 'HeteroData_Learnings_normalized_triangles_withadditionaldata_v1.pt'
     size = os.path.getsize(filename)
@@ -86,25 +86,26 @@ def get_datasets(get_edge_attr=False, filename=None):
 
     
     top_k = 50
-    print('for skill job edges keep top k edges per job, k is ',top_k)
-    e = ('skills', 'job_skill', 'jobs')
-    rev_e = (e[2],'rev_'+e[1],e[0])
-    cache_dir = 'cache'
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    
-    mask_path = os.path.join(cache_dir, 'mask.pt') 
-    
-    if os.path.isfile(mask_path):
-        mask = torch.load(mask_path)
-    else:
-        mask = top_k_mask(data[e].edge_attr.squeeze(1), data[e].edge_index[1,:], top_k)
-        torch.save(mask, mask_path) 
-     
-    data[e].edge_attr = data[e].edge_attr[mask]
-    data[rev_e].edge_attr = data[rev_e].edge_attr[mask]
-    data[e].edge_index = data[e].edge_index[:,mask]
-    data[rev_e].edge_index = data[rev_e].edge_index[:,mask]
+    if filter_top_k:
+        print('for skill job edges keep top k edges per job, k is ',top_k)
+        e = ('skills', 'job_skill', 'jobs')
+        rev_e = (e[2],'rev_'+e[1],e[0])
+        cache_dir = 'cache'
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        
+        mask_path = os.path.join(cache_dir, f'mask{top_k}.pt') 
+        
+        if os.path.isfile(mask_path):
+            mask = torch.load(mask_path)
+        else:
+            mask = top_k_mask(data[e].edge_attr.squeeze(1), data[e].edge_index[1,:], top_k)
+            torch.save(mask, mask_path) 
+        
+        data[e].edge_attr = data[e].edge_attr[mask]
+        data[rev_e].edge_attr = data[rev_e].edge_attr[mask]
+        data[e].edge_index = data[e].edge_index[:,mask]
+        data[rev_e].edge_index = data[rev_e].edge_index[:,mask]
 
     
     
