@@ -49,7 +49,7 @@ from torch_geometric.data import HeteroData
 
 def get_datasets(get_edge_attr=False, filename=None):
     if filename is None:
-        filename = 'HeteroData_Learnings_v1.pt'
+        filename = 'HeteroData_Learnings_normalized_triangles_withadditionaldata_v1.pt'
     size = os.path.getsize(filename)
     print('size of dataset on disk: ', size/1e9, 'gb')
 
@@ -74,7 +74,7 @@ def get_datasets(get_edge_attr=False, filename=None):
         edge_types=edge_types,
         rev_edge_types=rev_edge_types,
         num_val=0.02,
-        num_test=0.02,
+        num_test=0.05,
         add_negative_train_samples=False, # only adds neg samples for val and test, neg train are added by LinkNeighborLoader. This means for each train batch, negs. are different, for val and train they stay the same
         neg_sampling_ratio=1.0,
         disjoint_train_ratio=0.3, #  training edges are shared for message passing and supervision
@@ -116,7 +116,7 @@ def get_datasets(get_edge_attr=False, filename=None):
                 data[node_type].x[:,i] = data[node_type].x[:,i]/data[node_type].x[:,i].max()
         
         data[node_type].x = data[node_type].x.to(torch.float32)
-    
+        
     
     
     train_data, val_data, test_data = transform(data)
@@ -195,7 +195,7 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
     def get_hgt_with_selfloops(loader):
         
         
-        for batch in loader:    
+        for batch in loader:   
             if sampling_mode=='triplet':      
                 # original edge_label_index from the whole data object
                 unmapped_batchids = torch.cat((batch[target_edge[0]].src_index,batch[target_edge[2]].dst_pos_index, batch[target_edge[2]].dst_neg_index)).unique()
@@ -271,9 +271,9 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
 #train_data, val_data, test_data = get_datasets(get_edge_attr=False)
 # testing
 #input_edgetype = ('jobs', 'job_job', 'jobs')
-#loader = get_hgt_linkloader(train_data, input_edgetype, 4, True, 'triplet', 1, [10])
+#loader = get_hgt_linkloader(train_data, input_edgetype, 4, True, 'triplet', 1, [10], num_workers=0)
 #minibatch, edge_label_index, edge_label, input_edge_ids = next(iter(loader))
-
+#minibatch
 #input_edgetype = ('skills', 'qualification_skill', 'qualifications')
 #loader = get_hgt_linkloader(train_data, input_edgetype, 10, True, 'triplet', 1, [10], num_workers=0)
 #minibatchpart1, minibatchpart2, edge_label_index, edge_label, input_edge_id = next(iter(loader))

@@ -3,4 +3,9 @@
 !.gitignore
 !main.ipynb
 !graphdata_preprocessing.ipynb
-!colab.ipynb
+
+!*.ipynb
+!models
+!models/*.py
+!README.md
+!.gitignore
