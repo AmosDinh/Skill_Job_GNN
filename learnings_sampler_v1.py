@@ -120,9 +120,9 @@ def get_datasets(get_edge_attr=False, filename=None):
     
     
     train_data, val_data, test_data = transform(data)
-    train_data = sort_edges(train_data)
-    val_data = sort_edges(val_data)
-    test_data = sort_edges(test_data)
+    #train_data = sort_edges(train_data)
+    #val_data = sort_edges(val_data)
+    #test_data = sort_edges(test_data)
     train_data = preprocess(train_data)
     val_data = preprocess(val_data)
     test_data = preprocess(test_data)
@@ -251,6 +251,7 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
             hgt_batch1 = get_hgt(data, target_edge[0], original_edge_label_index_class1)
             hgt_batch2 = get_hgt(data, target_edge[2], original_edge_label_index_class2)
             
+            
             # ** We dont need to remove any edges ** since the supervision edges wont be sampled by hgt
             if sampling_mode=='triplet':
                 yield add_self_loops(hgt_batch1), add_self_loops(hgt_batch2), local_edge_label_index, edge_label, batch[target_edge].input_id
@@ -280,12 +281,6 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
 
 
 # COMMAND ----------
-input
-
-# COMMAND ----------
-wdwd
-
-# COMMAND ----------
 import random
 
 def get_minibatch_count(data, batch_size):
@@ -294,7 +289,7 @@ def get_minibatch_count(data, batch_size):
         if edge_type[1].startswith('rev_'):
             continue
         batches.extend([edge_type for _ in range((data[edge_type].edge_label_index.shape[1]+batch_size)//batch_size)])
-        loaders[edge_type]=get_hgt_linkloader(data, edge_type, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors)
+        
     return len(batches)
 
 def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors):
@@ -360,8 +355,5 @@ if __name__ == '__main__':
     end = datetime.datetime.now()
     print()
     print(end-start)
-
-# COMMAND ----------
-32*25, 32*10
 
 
