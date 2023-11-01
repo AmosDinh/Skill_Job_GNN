@@ -85,7 +85,7 @@ def get_datasets(get_edge_attr=False, filename=None, filter_top_k=False, top_k=5
         return mask.cpu()
 
     
-   
+
     if filter_top_k:
         print('for skill job edges keep top k edges per job, k is ',top_k)
         e = ('skills', 'job_skill', 'jobs')
@@ -106,6 +106,7 @@ def get_datasets(get_edge_attr=False, filename=None, filter_top_k=False, top_k=5
         data[rev_e].edge_attr = data[rev_e].edge_attr[mask]
         data[e].edge_index = data[e].edge_index[:,mask]
         data[rev_e].edge_index = data[rev_e].edge_index[:,mask]
+
 
     
     
