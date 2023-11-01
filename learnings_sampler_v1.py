@@ -292,7 +292,7 @@ def get_minibatch_count(data, batch_size):
         
     return len(batches)
 
-def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors):
+def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers):
     # return batches from all edgetypes with each "edge" being drawn uniformly at random (but we translate the probabilities to batches), last batches of each edge type may be smaller than batch_size
     batches = []
     loaders = {}
@@ -301,7 +301,7 @@ def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampli
         if edge_type[1].startswith('rev_'):
             continue
         batches.extend([edge_type for _ in range((data[edge_type].edge_label_index.shape[1]+batch_size)//batch_size)])
-        loaders[edge_type]=get_hgt_linkloader(data, edge_type, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors)
+        loaders[edge_type]=get_hgt_linkloader(data, edge_type, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers)
         
     random.seed(14)
     random.shuffle(batches)
@@ -332,7 +332,7 @@ if __name__ == '__main__':
     num_neighbors = [one_hop_neighbors, two_hop_neighbors]
     print('num_neighbors', num_neighbors)
 
-    sampler = uniform_hgt_sampler(train_data, batch_size, True, 'binary', 1, num_neighbors)
+    sampler = uniform_hgt_sampler(train_data, batch_size, True, 'binary', 1, num_neighbors, num_workers=0)
     start = datetime.datetime.now()
     print(start)
     print()
