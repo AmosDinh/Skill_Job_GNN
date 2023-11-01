@@ -138,7 +138,7 @@ from torch_geometric.loader import LinkNeighborLoader
 from torch_geometric.loader import HGTLoader
 from torch_geometric.sampler import NegativeSampling
 
-def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode, neg_ratio, num_neighbors_hgtloader, num_workers):
+def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode, neg_ratio, num_neighbors_hgtloader, num_workers, prefetch_factor, pin_memory):
     # first sample some edges in linkNeighborLoader
     # use the nodes of the sampled edges to sample from hgt loader
     
@@ -169,11 +169,12 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
             #drop_last=True,
             num_workers=num_workers,
             #disjoint=True # sampled seed node creates its own, disjoint from the rest, subgraph, will add "batch vector" to loader output
-            pin_memory=True, # faster data transfer to gpu
+        
             #num_workers=2,
             #prefetch_factor=2
             is_sorted = False,
-            prefetch_factor=3
+            pin_memory=pin_memory,
+            prefetch_factor=prefetch_factor,
     )
    
    
@@ -185,8 +186,8 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
                 batch_size=input_mask.shape[0],
                 input_nodes=(input_nodetype, input_mask),
                 num_workers=num_workers,
-                pin_memory=True,
-                prefetch_factor=3
+                pin_memory=pin_memory,
+                prefetch_factor=prefetch_factor,
             )))
         
     
@@ -296,7 +297,7 @@ def get_minibatch_count(data, batch_size):
         
     return len(batches)
 
-def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers):
+def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory):
     # return batches from all edgetypes with each "edge" being drawn uniformly at random (but we translate the probabilities to batches), last batches of each edge type may be smaller than batch_size
     batches = []
     loaders = {}
@@ -305,7 +306,7 @@ def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampli
         if edge_type[1].startswith('rev_'):
             continue
         batches.extend([edge_type for _ in range((data[edge_type].edge_label_index.shape[1]+batch_size)//batch_size)])
-        loaders[edge_type]=get_hgt_linkloader(data, edge_type, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers)
+        loaders[edge_type]=get_hgt_linkloader(data, edge_type, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory)
         
     random.seed(14)
     random.shuffle(batches)
