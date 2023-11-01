@@ -172,7 +172,8 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
             pin_memory=True, # faster data transfer to gpu
             #num_workers=2,
             #prefetch_factor=2
-            is_sorted = False
+            is_sorted = False,
+            prefetch_factor=3
     )
    
    
@@ -183,6 +184,9 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
                 num_samples=num_neighbors_hgtloader,
                 batch_size=input_mask.shape[0],
                 input_nodes=(input_nodetype, input_mask),
+                num_workers=num_workers,
+                pin_memory=True,
+                prefetch_factor=3
             )))
         
     
