@@ -47,16 +47,20 @@ import os
 import torch
 from torch_geometric.data import HeteroData
 from tqdm.auto import tqdm
-
+import numpy as np
 def add_reverse_edge_original_attributes_and_label_inplace(original_edge, reverse_edge):
     # add edge label and index and edge attr to reverse edge 
     if 'edge_attr' in original_edge:
         reverse_edge['edge_attr'] = original_edge['edge_attr']
     reverse_edge['edge_label'] = original_edge['edge_label']
     reverse_edge['edge_label_index'] = original_edge['edge_label_index'].index_select(0, torch.LongTensor([1, 0]))
+    for key in original_edge.keys():
+        if key not in ['edge_attr', 'edge_label', 'edge_label_index']:
+                reverse_edge[key] = original_edge[key]
+                
     return reverse_edge
 
-def get_datasets(get_edge_attr=False, filename=None, filter_top_k=False, top_k=50):
+def get_datasets(get_edge_attr=False, filename=None, filter_top_k=False, top_k=50, remove_text_attr=True):
     if filename is None:
         filename = 'HeteroData_Learnings_normalized_triangles_withadditionaldata_v1.pt'
     size = os.path.getsize(filename)
@@ -186,9 +190,10 @@ def get_datasets(get_edge_attr=False, filename=None, filter_top_k=False, top_k=5
     #train_data = sort_edges(train_data)
     #val_data = sort_edges(val_data)
     #test_data = sort_edges(test_data)
-    train_data = preprocess(train_data)
-    val_data = preprocess(val_data)
-    test_data = preprocess(test_data)
+    if remove_text_attr:
+        train_data = preprocess(train_data)
+        val_data = preprocess(val_data)
+        test_data = preprocess(test_data)
     
     return train_data, val_data, test_data
 
@@ -266,16 +271,18 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
         for batch in loader:   
             if sampling_mode=='triplet':      
                 # original edge_label_index from the whole data object
-                unmapped_batchids = torch.cat((batch[target_edge[0]].src_index,batch[target_edge[2]].dst_pos_index, batch[target_edge[2]].dst_neg_index)).unique()
+                unmapped_batchids = torch.cat((batch[target_edge[0]].src_index,batch[target_edge[2]].dst_pos_index, batch[target_edge[2]].dst_neg_index.flatten())).unique()
                 original_edge_label_nodes = torch.LongTensor(batch[target_edge[0]].n_id[unmapped_batchids])
 
                 #remapping or sorting is not needed, since nodes are sorted, also in the htg batch, the edges will be the same
-        
                 src = batch[target_edge[0]].src_index.unsqueeze(0)
-                src = torch.cat((src,src), dim=1)
-                dst = torch.cat((batch[target_edge[2]].dst_pos_index, batch[target_edge[2]].dst_neg_index),dim=0).unsqueeze(0)
-                local_edge_label_index = torch.cat((src, dst),dim=0)
-                edge_label = torch.cat((torch.ones(batch[target_edge[2]].dst_pos_index.shape[0]), torch.zeros(batch[target_edge[2]].dst_neg_index.shape[0])))
+                src_total = src
+                for i in range(neg_ratio):
+                    src_total = torch.cat((src_total,src), dim=1)
+                dst = torch.cat((batch[target_edge[2]].dst_pos_index, batch[target_edge[2]].dst_neg_index.flatten()),dim=0).unsqueeze(0)
+                
+                local_edge_label_index = torch.cat((src_total, dst),dim=0)
+                edge_label = torch.cat((torch.ones(batch[target_edge[2]].dst_pos_index.shape[0]), torch.zeros(batch[target_edge[2]].dst_neg_index.flatten().shape[0])))
                 
             elif sampling_mode=='binary':
                 unmapped_batchids = batch[target_edge].edge_label_index.flatten().unique()
@@ -290,42 +297,46 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
             if sampling_mode=='triplet':
                 
                 # return message passing edges, and supervision edges/labels, ignore labels/label_indices in the message passing edges
-                yield add_self_loops(hgt_batch), local_edge_label_index, edge_label, batch[target_edge].input_id
+                yield add_self_loops(hgt_batch), local_edge_label_index, edge_label, batch[target_edge].input_id, original_edge_label_nodes
             else: # sampling_mode=='binary':
                 # return message passing edges, and supervision edges/labels, ignore labels/label_indices in the message passing edges, as well as original edge indices
-                yield add_self_loops(hgt_batch), batch[target_edge].edge_label_index, batch[target_edge].edge_label, batch[target_edge].input_id
+                yield add_self_loops(hgt_batch), batch[target_edge].edge_label_index, batch[target_edge].edge_label, batch[target_edge].input_id, original_edge_label_nodes
     
     def get_hgt_2types_with_selfloops(loader):
         for batch in loader:
             if sampling_mode=='triplet':   
-                original_edge_label_index_class1 = torch.LongTensor(batch[target_edge[0]].n_id[batch[target_edge[0]].src_index.unique()])
-                original_edge_label_index_class2 = torch.LongTensor(batch[target_edge[2]].n_id[torch.cat((batch[target_edge[2]].dst_pos_index, batch[target_edge[2]].dst_neg_index)).unique()])
+                original_edge_label_nodes_class1 = torch.LongTensor(batch[target_edge[0]].n_id[batch[target_edge[0]].src_index.unique()])
+                original_edge_label_nodes_class2 = torch.LongTensor(batch[target_edge[2]].n_id[torch.cat((batch[target_edge[2]].dst_pos_index, batch[target_edge[2]].dst_neg_index.flatten())).unique()])
+                
                 
                 src = batch[target_edge[0]].src_index.unsqueeze(0)
-                src = torch.cat((src,src), dim=1)
-                dst = torch.cat((batch[target_edge[2]].dst_pos_index, batch[target_edge[2]].dst_neg_index),dim=0).unsqueeze(0)
+                src_total = src
+                for i in range(neg_ratio):
+                    src_total = torch.cat((src_total,src), dim=1)
                 
-                local_edge_label_index = torch.cat((src, dst),dim=0)
-                edge_label = torch.cat((torch.ones(batch[target_edge[2]].dst_pos_index.shape[0]), torch.zeros(batch[target_edge[2]].dst_neg_index.shape[0])))
+                dst = torch.cat((batch[target_edge[2]].dst_pos_index, batch[target_edge[2]].dst_neg_index.flatten()),dim=0).unsqueeze(0)
+                
+                local_edge_label_index = torch.cat((src_total, dst),dim=0)
+                edge_label = torch.cat((torch.ones(batch[target_edge[2]].dst_pos_index.shape[0]), torch.zeros(batch[target_edge[2]].dst_neg_index.flatten().shape[0])))
 
             elif sampling_mode=='binary':
-                original_edge_label_index_class1 = batch[target_edge[0]].n_id[batch[target_edge].edge_label_index[0,:].unique()]
-                original_edge_label_index_class2 = batch[target_edge[2]].n_id[batch[target_edge].edge_label_index[1,:].unique()]
+                original_edge_label_nodes_class1 = batch[target_edge[0]].n_id[batch[target_edge].edge_label_index[0,:].unique()]
+                original_edge_label_nodes_class2 = batch[target_edge[2]].n_id[batch[target_edge].edge_label_index[1,:].unique()]
 
             else:
                 raise Exception('binary or triplet sampling mode')
 
             # batch the start and end supervision nodes separately
-            hgt_batch1 = get_hgt(data, target_edge[0], original_edge_label_index_class1)
-            hgt_batch2 = get_hgt(data, target_edge[2], original_edge_label_index_class2)
+            hgt_batch1 = get_hgt(data, target_edge[0], original_edge_label_nodes_class1)
+            hgt_batch2 = get_hgt(data, target_edge[2], original_edge_label_nodes_class2)
             
             
             # ** We dont need to remove any edges ** since the supervision edges wont be sampled by hgt
             if sampling_mode=='triplet':
-                yield add_self_loops(hgt_batch1), add_self_loops(hgt_batch2), local_edge_label_index, edge_label, batch[target_edge].input_id
+                yield add_self_loops(hgt_batch1), add_self_loops(hgt_batch2), local_edge_label_index, edge_label, batch[target_edge].input_id, original_edge_label_nodes_class1, original_edge_label_nodes_class2
             else: # sampling_mode=='binary':
                 # we can access the corresponding nodes of edge_label_index[0,:] in hgt_batch1[target_edge[0]], those of [1,:] in hgt_batch2...
-                yield add_self_loops(hgt_batch1), add_self_loops(hgt_batch2), batch[target_edge].edge_label_index, batch[target_edge].edge_label, batch[target_edge].input_id
+                yield add_self_loops(hgt_batch1), add_self_loops(hgt_batch2), batch[target_edge].edge_label_index, batch[target_edge].edge_label, batch[target_edge].input_id, original_edge_label_nodes_class1, original_edge_label_nodes_class2
 
         
     if target_edge[0] == target_edge[2]:

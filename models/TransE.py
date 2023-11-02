@@ -73,7 +73,6 @@ class TransE(KGEModel):
         rel_type,
         tail_embeddings: Tensor,
     ) -> Tensor:
-
         #head = self.node_emb(head_index)
         rel = self.rel_emb(rel_type)  # Amos: only learn the relation embeddings, others are learned with GNN
         #tail = self.node_emb(tail_index)
@@ -84,6 +83,20 @@ class TransE(KGEModel):
         # Calculate *negative* TransE norm:
         return -((head + rel) - tail).norm(p=self.p_norm, dim=-1)
 
+    
+    def get_embedding(self,
+                      embedding,
+                      rel_type,
+                        have_head_or_tail
+                      ):
+        rel = self.rel_emb(rel_type)
+        embedding = F.normalize(embedding, p=self.p_norm, dim=-1)
+        if have_head_or_tail == 'head':
+            return embedding + rel
+        else:
+            return embedding - rel
+    
+    
     def loss(
         self,
         head_embeddings: Tensor,
