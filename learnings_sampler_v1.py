@@ -423,14 +423,17 @@ def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampli
 def equal_edgeweight_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory):
     batchcount=[]
     batches=[]
+    loaders = {}
     for edge_type in data.edge_types:
         if edge_type[1].startswith('rev_'):
             continue
         batchcount.extend([edge_type for _ in range((data[edge_type].edge_label_index.shape[1]+batch_size)//batch_size)])
         batches.append(edge_type)
+        loaders[edge_type]=get_hgt_linkloader(data, edge_type, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory)
+        
     print('total batches:', len(batchcount))
 
-    batches = random.choices(batches, weights=weights, k=len(batchcount)) 
+    batches = random.choices(batches, k=len(batchcount)) 
     # set a random random seed again (may affect creating the loaders later for a second epoch)
     random.seed()
     
