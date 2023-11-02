@@ -46,6 +46,15 @@
 import os
 import torch
 from torch_geometric.data import HeteroData
+from tqdm.auto import tqdm
+
+def add_reverse_edge_original_attributes_and_label_inplace(original_edge, reverse_edge):
+    # add edge label and index and edge attr to reverse edge 
+    if 'edge_attr' in original_edge:
+        reverse_edge['edge_attr'] = original_edge['edge_attr']
+    reverse_edge['edge_label'] = original_edge['edge_label']
+    reverse_edge['edge_label_index'] = original_edge['edge_label_index'].index_select(0, torch.LongTensor([1, 0]))
+    return reverse_edge
 
 def get_datasets(get_edge_attr=False, filename=None, filter_top_k=False, top_k=50):
     if filename is None:
@@ -58,7 +67,7 @@ def get_datasets(get_edge_attr=False, filename=None, filter_top_k=False, top_k=5
         print('loading saved heterodata object')
 
 
-    from tqdm.auto import tqdm
+    
     def top_k_mask(scores, indices, top_k ):
         # Make sure we are using the GPU
         scores = scores.cuda()
@@ -85,7 +94,7 @@ def get_datasets(get_edge_attr=False, filename=None, filter_top_k=False, top_k=5
         return mask.cpu()
 
     
-
+   
     if filter_top_k:
         print('for skill job edges keep top k edges per job, k is ',top_k)
         e = ('skills', 'job_skill', 'jobs')
@@ -106,8 +115,7 @@ def get_datasets(get_edge_attr=False, filename=None, filter_top_k=False, top_k=5
         data[rev_e].edge_attr = data[rev_e].edge_attr[mask]
         data[e].edge_index = data[e].edge_index[:,mask]
         data[rev_e].edge_index = data[rev_e].edge_index[:,mask]
-
-
+        print('keep',torch.sum(mask), 'of total',mask.shape[0])
     
     
     from torch_geometric import seed_everything
@@ -328,10 +336,11 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
 
 
 # COMMAND ----------
-#train_data, val_data, test_data = get_datasets(get_edge_attr=False)
+#train_data, val_data, test_data = get_datasets(get_edge_attr=False, filter_top_k=True, top_k=50)
 # testing
 #input_edgetype = ('jobs', 'job_job', 'jobs')
-#loader = get_hgt_linkloader(train_data, input_edgetype, 4, True, 'triplet', 1, [10], num_workers=0)
+
+#loader = get_hgt_linkloader(train_data, input_edgetype, 4, True, 'triplet', 1, [10], num_workers=0, prefetch_factor=None, pin_memory=False)
 #minibatch, edge_label_index, edge_label, input_edge_ids = next(iter(loader))
 #minibatch
 #input_edgetype = ('skills', 'qualification_skill', 'qualifications')
@@ -339,6 +348,15 @@ def get_hgt_linkloader(data, target_edge, batch_size, is_training, sampling_mode
 #minibatchpart1, minibatchpart2, edge_label_index, edge_label, input_edge_id = next(iter(loader))
 #input_edge_id
 
+
+# add reverse edge
+#add_reverse_edge_original_attributes_and_label_inplace(train_data['courses_and_programs', 'course_and_programs_student', 'people'], reverse_edge=train_data['people', 'rev_course_and_programs_student', 'courses_and_programs'] )
+#from tqdm.auto import tqdm
+#input_edgetype = ('people', 'rev_course_and_programs_student', 'courses_and_programs')
+#loader = get_hgt_linkloader(train_data, input_edgetype, 4, True, 'triplet', 1, [10], num_workers=0, prefetch_factor=None, pin_memory=False)
+#for batch in tqdm(loader, total=get_single_minibatch_count(train_data, 4, input_edgetype)):
+#    
+#    pass # courses_and_programs, course_and_programs_student, people
 
 # COMMAND ----------
 import random
@@ -351,6 +369,9 @@ def get_minibatch_count(data, batch_size):
         batches.extend([edge_type for _ in range((data[edge_type].edge_label_index.shape[1]+batch_size)//batch_size)])
         
     return len(batches)
+
+def get_single_minibatch_count(data, batch_size, edge_type):
+    return (data[edge_type].edge_label_index.shape[1]+batch_size)//batch_size
 
 def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory):
     # return batches from all edgetypes with each "edge" being drawn uniformly at random (but we translate the probabilities to batches), last batches of each edge type may be smaller than batch_size
@@ -375,8 +396,38 @@ def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampli
             same_nodetype = True
         else:
             same_nodetype = False
-        yield same_nodetype, target_edge_type, next(loaders[target_edge_type])
+        try:
+            minibatch = next(loaders[target_edge_type])
+        except StopIteration: # "reinit" iterator
+            loaders[target_edge_type] = iter(loaders[target_edge_type])
+        yield same_nodetype, target_edge_type, minibatch
 
+def equal_edgeweight_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory):
+    batchcount=[]
+    batches=[]
+    for edge_type in data.edge_types:
+        if edge_type[1].startswith('rev_'):
+            continue
+        batchcount.extend([edge_type for _ in range((data[edge_type].edge_label_index.shape[1]+batch_size)//batch_size)])
+        batches.append(edge_type)
+    print('total batches:', len(batchcount))
+
+    batches = random.choices(batches, weights=weights, k=len(batchcount)) 
+    # set a random random seed again (may affect creating the loaders later for a second epoch)
+    random.seed()
+    
+   
+    
+    for target_edge_type in batches:
+        if target_edge_type[0] == target_edge_type[2]:
+            same_nodetype = True
+        else:
+            same_nodetype = False
+        try:
+            minibatch = next(loaders[target_edge_type])
+        except StopIteration: # "reinit" iterator
+            loaders[target_edge_type] = iter(loaders[target_edge_type])
+        yield same_nodetype, target_edge_type, minibatch
 
 # COMMAND ----------
 if __name__ == '__main__':

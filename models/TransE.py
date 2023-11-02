@@ -102,4 +102,4 @@ class TransE(KGEModel):
             neg_score,
             target=torch.ones_like(pos_score), # 1 for similarity, -1 for dissimilarity
             margin=self.margin,
-        ), pos_score, neg_score
+        )
