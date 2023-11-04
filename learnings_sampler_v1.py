@@ -391,7 +391,9 @@ def get_minibatch_count(data, batch_size):
 def get_single_minibatch_count(data, batch_size, edge_type):
     return (data[edge_type].edge_label_index.shape[1]+batch_size)//batch_size
 
+from copy import deepcopy
 def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory):
+
     # return batches from all edgetypes with each "edge" being drawn uniformly at random (but we translate the probabilities to batches), last batches of each edge type may be smaller than batch_size
     batches = []
     loaders = {}
@@ -417,7 +419,10 @@ def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampli
         try:
             minibatch = next(loaders[target_edge_type])
         except StopIteration: # "reinit" iterator
-            loaders[target_edge_type] = iter(loaders[target_edge_type])
+            loaders[target_edge_type] = get_hgt_linkloader(data, target_edge_type, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory)#iter(loaders[target_edge_type])
+            minibatch = next(loaders[target_edge_type])
+            pass
+
         yield same_nodetype, target_edge_type, minibatch
 
 def equal_edgeweight_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory):
@@ -447,7 +452,10 @@ def equal_edgeweight_hgt_sampler(data, batch_size, is_training, sampling_mode, n
         try:
             minibatch = next(loaders[target_edge_type])
         except StopIteration: # "reinit" iterator
-            loaders[target_edge_type] = iter(loaders[target_edge_type])
+            loaders[target_edge_type] = get_hgt_linkloader(data, target_edge_type, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory)#iter(loaders[target_edge_type])
+            minibatch = next(loaders[target_edge_type])
+            pass
+            
         yield same_nodetype, target_edge_type, minibatch
 
 # COMMAND ----------
