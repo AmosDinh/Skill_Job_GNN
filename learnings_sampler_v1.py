@@ -424,6 +424,37 @@ def uniform_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampli
             pass
 
         yield same_nodetype, target_edge_type, minibatch
+        
+def sampler_for_init(data, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory):
+    batchcount=[]
+    batches=[]
+    loaders = {}
+    for edge_type in data.edge_types:
+        if edge_type[1].startswith('rev_'):
+            continue
+        batchcount.extend([edge_type for _ in range((data[edge_type].edge_label_index.shape[1]+batch_size)//batch_size)])
+        batches.append(edge_type)
+        loaders[edge_type]=get_hgt_linkloader(data, edge_type, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory)
+        
+    print('total batches:', len(batchcount))
+
+    
+    # set a random random seed again (may affect creating the loaders later for a second epoch)
+    random.seed()
+    
+    for target_edge_type in batches:
+        if target_edge_type[0] == target_edge_type[2]:
+            same_nodetype = True
+        else:
+            same_nodetype = False
+        try:
+            minibatch = next(loaders[target_edge_type])
+        except StopIteration: # "reinit" iterator
+            loaders[target_edge_type] = get_hgt_linkloader(data, target_edge_type, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory)#iter(loaders[target_edge_type])
+            minibatch = next(loaders[target_edge_type])
+            pass
+            
+        yield same_nodetype, target_edge_type, minibatch
 
 def equal_edgeweight_hgt_sampler(data, batch_size, is_training, sampling_mode, neg_sampling_ratio, num_neighbors, num_workers, prefetch_factor, pin_memory):
     batchcount=[]
