@@ -1,7 +1,7 @@
 version: '3.4'
 services:
   weaviate:
-    image: semitechnologies/weaviate:latest
+    image: cr.weaviate.io/semitechnologies/weaviate:latest
     volumes:
       - /var/weaviatecomplete:/var/lib/weaviate
     ports:
